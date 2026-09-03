@@ -68,7 +68,7 @@ streamlit run app_steam.py
 
 Kaggle — *Steam Games Dataset*，使用其中的 `games_march2025_cleaned.csv`。
 
-> ⚠️ **待補**：請填上實際使用的 Kaggle dataset 連結。目前口頭提到的 `nikdavis/steam-store-games` 是 2019 年那份，欄位裡沒有 `dlc_count` / `screenshot_count` / `movie_count`，與本專案實際使用的特徵對不上。
+> 
 
 篩選條件：發行日期介於 2015-01-01 至 2023-12-31，排除定價或銷量區間缺失的樣本。
 
