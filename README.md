@@ -58,7 +58,7 @@ streamlit run app_steam.py
 
 - **Normal 類別基本上預測不準**（F1 = 0.29）。中間市場的界線本來就模糊，而且標籤是在一個高度並列的分桶變數（`estimated_owners` 是 `"20000 - 50000"` 這種字串區間）上切百分位，Tier 1 / Tier 2 的邊界很可能落在同一個桶內。這一題也許更適合做序數迴歸，或直接做「進不進前 10%」的二元分類。
 - **驗證用隨機切分，不是時序切分**。資料橫跨 2015–2023，而各年度的中位數銷量逐年下降；隨機切分等於拿 2023 的資料去預測 2020，指標會偏樂觀。
-- **顯示的機率經過先驗校正**。訓練時 SMOTE 把三類拉成 1:1:1，模型輸出帶著均勻先驗，直接顯示會系統性高估爆款。App 在推論時乘回市場先驗（70.8 / 19.7 / 9.5）再正規化 — 見 `model_meta.json` 的 `train_prior` / `market_prior`。這只挪動機率、不改變類別排序，因此不影響上面的 Accuracy 與 Macro F1。
+- **顯示的機率經過先驗校正**。訓練時 SMOTE 把三類拉成 1:1:1，模型輸出帶著均勻先驗，直接顯示會系統性高估爆款。App 在推論時乘回市場先驗（70.8 / 19.7 / 9.5）再正規化 — 見 `model_meta.json` 的 `train_prior` / `market_prior`。校正會改變 argmax，因此**上表的 Accuracy 與 Macro F1 是未校正版本的數字**，與 app 實際顯示的行為不一致。校正後的指標請用 `analysis/diagnostics.py` 檢查 1 重跑取得。
 - **SMOTE 用在 one-hot 稀疏特徵上並不理想**，插值會產生 `tag_Action = 0.37` 這種不存在的樣本。改用 class weight 或 SMOTE-NC 會更合理。
 - **只有上市前特徵**，捕捉不到口碑傳播、社群效應、遊戲品質本身。現象級爆款本來就在模型的預測範圍之外。評論數、遊玩時數、Metacritic 分數這類後驗指標與銷量的相關性遠高於前置特徵，但納入即構成資料洩漏，因此全部排除。
 
@@ -80,6 +80,23 @@ streamlit run app_steam.py
 **標籤來源**：標籤矩陣帶有玩家投票數，為避免資料洩漏，只取標籤名稱（Keys）不取票數，並鎖定全平台出現頻率最高的 Top 50 標籤做 One-Hot。
 
 **預測目標**取自 D2 的 `estimated_owners` 上界。D1 的 `owners`（2019 快照）沒有進入特徵集 —— 可對照 `model_meta.json` 的 `selected_features` 確認，裡面只有上市前可取得的欄位。
+
+## 診斷檢查
+
+`analysis/diagnostics.py` 一次跑完四項檢查，用來驗證上面「已知限制」列出的疑慮實際有多嚴重：
+
+```bash
+python analysis/diagnostics.py --data <建模表>.csv
+```
+
+需要一份已建好的建模表 CSV，欄位包含 `model_meta.json` 的 60 個特徵、標籤欄 `tier`（0/1/2）與 `release_year`。結果會印在終端機並寫入 `analysis/out/diagnostics.md`。
+
+| | 檢查 | 回答的問題 |
+|---|---|---|
+| 1 | 先驗校正對指標的影響 | 校正後的 Accuracy / Macro F1 各是多少 |
+| 2 | 事後變數消融 | 拿掉 `dlc_count`（及其他快照變數）後掉多少 |
+| 3 | 標籤覆蓋率捷徑 | 標籤是否只是「2019 年前發行」的代理變數 |
+| 4 | 時序 vs 隨機切分 | 隨機切分高估了多少 |
 
 ## 檔案
 
