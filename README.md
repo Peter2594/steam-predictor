@@ -66,13 +66,22 @@ streamlit run app_steam.py
 
 ## 資料來源
 
-Kaggle — *Steam Games Dataset*，使用其中的 `games_march2025_cleaned.csv`。
+本專案合併了四份公開資料：
 
-> ⚠️ **待補**：請填上實際使用的 Kaggle dataset 連結。目前口頭提到的 `nikdavis/steam-store-games` 是 2019 年那份，欄位裡沒有 `dlc_count` / `screenshot_count` / `movie_count`，與本專案實際使用的特徵對不上。
+| | 來源 | 提供的欄位 | 筆數 | 快照時間 |
+|---|---|---|---|---|
+| **D1** | SteamSpy — [`steam.csv`](https://www.kaggle.com/datasets/nikdavis/steam-store-games) | `owners`, `price`, `achievements`, `dlc_count` | ~29,000 | 2019 |
+| **D2** | Steam 爬蟲 — `games_march2025_cleaned.csv` | `estimated_owners`, `genres`, `categories`, `supported_languages` | ~40,000 | 2025/3 |
+| **D3** | Steam 遊戲資訊 — `steam/games.csv` | `developer`, `publisher`, `release_date`, `short_description` | 98,248 | 2023 |
+| **標籤矩陣** | SteamSpy — [`steamspy_tag_data.csv`](https://www.kaggle.com/datasets/nikdavis/steam-store-games) | 371 個細分類型標籤（weighted vote 計數） | 29,022 | 2019 |
 
-篩選條件：發行日期介於 2015-01-01 至 2023-12-31，排除定價或銷量區間缺失的樣本。
+> D2 與 D3 的 Kaggle 連結待補。
 
----
+**篩選條件**：發行日期介於 2015-01-01 至 2023-12-31，排除定價或銷量區間缺失的樣本，最終有效樣本 60,814 筆。
+
+**標籤來源**：標籤矩陣帶有玩家投票數，為避免資料洩漏，只取標籤名稱（Keys）不取票數，並鎖定全平台出現頻率最高的 Top 50 標籤做 One-Hot。
+
+**預測目標**取自 D2 的 `estimated_owners` 上界。D1 的 `owners`（2019 快照）沒有進入特徵集 —— 可對照 `model_meta.json` 的 `selected_features` 確認，裡面只有上市前可取得的欄位。
 
 ## 檔案
 
