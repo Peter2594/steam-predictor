@@ -71,11 +71,9 @@ streamlit run app_steam.py
 | | 來源 | 提供的欄位 | 筆數 | 快照時間 |
 |---|---|---|---|---|
 | **D1** | SteamSpy — [`steam.csv`](https://www.kaggle.com/datasets/nikdavis/steam-store-games) | `owners`, `price`, `achievements`, `dlc_count` | ~29,000 | 2019 |
-| **D2** | Steam 爬蟲 — `games_march2025_cleaned.csv` | `estimated_owners`, `genres`, `categories`, `supported_languages` | ~40,000 | 2025/3 |
-| **D3** | Steam 遊戲資訊 — `steam/games.csv` | `developer`, `publisher`, `release_date`, `short_description` | 98,248 | 2023 |
+| **D2** | Steam 爬蟲 — [`games_march2025_cleaned.csv`](https://www.kaggle.com/datasets/artermiloff/steam-games-dataset) | `estimated_owners`, `genres`, `categories`, `supported_languages` | ~40,000 | 2025/3 |
+| **D3** | Steam 遊戲資訊 — [`steam/games.csv`](https://www.kaggle.com/datasets/muhammadaqeelkabir/steam-games-dataset-steamspy-api) | `developer`, `publisher`, `release_date`, `short_description` | 98,248 | 2023 |
 | **標籤矩陣** | SteamSpy — [`steamspy_tag_data.csv`](https://www.kaggle.com/datasets/nikdavis/steam-store-games) | 371 個細分類型標籤（weighted vote 計數） | 29,022 | 2019 |
-
-> D2 與 D3 的 Kaggle 連結待補。
 
 **篩選條件**：發行日期介於 2015-01-01 至 2023-12-31，排除定價或銷量區間缺失的樣本，最終有效樣本 60,814 筆。
 
