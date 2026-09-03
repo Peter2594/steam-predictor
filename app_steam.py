@@ -17,8 +17,12 @@ def load_model():
 
 xgb_clf, meta = load_model()
 selected_features = meta["selected_features"]
-genre_map = meta["genre_map"]
-tag_map   = meta["tag_map"]
+# Lasso 已剔除的類型/標籤仍留在對照表裡；若直接餵進選單，使用者選了會以為
+# 有作用，實際上完全不影響預測（33 個 genre 只有 14 個、50 個 tag 只有 37 個
+# 是模型特徵）。這裡先過濾成 selected_features 的子集。
+_SEL = set(selected_features)
+genre_map = {k: v for k, v in meta["genre_map"].items() if v in _SEL}
+tag_map   = {k: v for k, v in meta["tag_map"].items() if v in _SEL}
 
 # ── 先驗校正 ──────────────────────────────────────────────────────────
 # 訓練時以 SMOTE 將三類重採樣為 1:1:1，模型輸出的機率因此帶著均勻先驗，
@@ -43,19 +47,22 @@ TIERS = {
 PRESETS = {
     "indie": dict(
         is_free=False, price=9.99, lang_count=5, release_month=3,
-        is_multiplayer=False,
+        is_multiplayer=False, achievements=15, dlc_count=0,
+        screenshot_count=5, movie_count=1,
         genres=["Indie", "Adventure"],
-        tags=["Singleplayer", "Indie", "2D"],
+        tags=["Singleplayer", "Indie", "Story Rich"],
     ),
     "aaa": dict(
         is_free=False, price=59.99, lang_count=20, release_month=11,
-        is_multiplayer=True,
+        is_multiplayer=True, achievements=50, dlc_count=3,
+        screenshot_count=12, movie_count=2,
         genres=["Action", "Adventure"],
         tags=["Action", "Multiplayer", "Open World"],
     ),
     "f2p": dict(
         is_free=True, price=0.0, lang_count=12, release_month=6,
-        is_multiplayer=True,
+        is_multiplayer=True, achievements=30, dlc_count=0,
+        screenshot_count=8, movie_count=2,
         genres=["Action", "Free To Play"],
         tags=["Action", "Multiplayer", "Shooter"],
     ),
@@ -63,20 +70,21 @@ PRESETS = {
 
 # ── Session state 初始化 ──────────────────────────────────────────────
 def apply_preset(key):
-    p = PRESETS[key]
-    st.session_state["is_free"]        = p["is_free"]
-    st.session_state["price"]          = p["price"]
-    st.session_state["lang_count"]     = p["lang_count"]
-    st.session_state["release_month"]  = p["release_month"]
-    st.session_state["is_multiplayer"] = p["is_multiplayer"]
-    st.session_state["genres"]         = p["genres"]
-    st.session_state["tags"]           = p["tags"]
+    for k, v in PRESETS[key].items():
+        st.session_state[k] = list(v) if isinstance(v, list) else v
 
 for k, v in dict(is_free=False, price=9.99, lang_count=5, release_month=9,
-                 is_multiplayer=False, genres=["Indie","Action"],
+                 is_multiplayer=False, achievements=20, dlc_count=0,
+                 screenshot_count=5, movie_count=1,
+                 genres=["Indie","Action"],
                  tags=["Singleplayer","Action"]).items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# 舊 session 可能存著已被過濾掉的選項，會讓 multiselect 的 default 落在
+# options 之外而報錯，這裡清乾淨。
+st.session_state["genres"] = [g for g in st.session_state["genres"] if g in genre_map]
+st.session_state["tags"]   = [t for t in st.session_state["tags"]   if t in tag_map]
 
 # ── 頁面設定 ──────────────────────────────────────────────────────────
 st.set_page_config(page_title="Steam 銷量預測", page_icon="🎮", layout="wide")
@@ -167,6 +175,25 @@ with left:
     with mc2:
         is_multiplayer = st.toggle("含多人 / Co-op", key="is_multiplayer")
 
+    ac1, ac2 = st.columns(2)
+    with ac1:
+        achievements = st.number_input(
+            "成就數量", 0, 5000, key="achievements",
+            help="重要性第 3 名 — 內容規模的代理指標",
+        )
+    with ac2:
+        dlc_count = st.number_input(
+            "DLC 數量", 0, 200, key="dlc_count",
+            help="重要性第 5 名 — 對預測結果影響最大的單一輸入",
+        )
+
+    with st.expander("行銷素材（重要性較低）"):
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            screenshot_count = st.number_input("截圖數量", 0, 200, key="screenshot_count")
+        with sc2:
+            movie_count = st.number_input("影片數量", 0, 50, key="movie_count")
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 with right:
@@ -187,17 +214,16 @@ predict = st.button("🚀  預測市場表現", use_container_width=True, type="
 
 # ── 預測結果 ───────────────────────────────────────────────────────────
 if predict:
-    # 固定不顯示的特徵使用合理預設值
     row = {f: 0 for f in selected_features}
     row["price"]            = 0.0 if is_free else float(price)
     row["is_free"]          = int(is_free)
     row["lang_count"]       = int(lang_count)
     row["is_multiplayer"]   = int(is_multiplayer)
     row["release_month"]    = int(release_month)
-    row["achievements"]     = 20    # 固定預設
-    row["dlc_count"]        = 0
-    row["screenshot_count"] = 5
-    row["movie_count"]      = 1
+    row["achievements"]     = int(achievements)
+    row["dlc_count"]        = int(dlc_count)
+    row["screenshot_count"] = int(screenshot_count)
+    row["movie_count"]      = int(movie_count)
 
     for g in genres_selected:
         col = genre_map.get(g)
@@ -258,6 +284,8 @@ if predict:
             ("🌐", "語言數", int(lang_count)),
             ("👥", "多人",   "是" if is_multiplayer else "否"),
             ("📅", "月份",   f"{release_month} 月"),
+            ("🏆", "成就",   int(achievements)),
+            ("📦", "DLC",    int(dlc_count)),
         ]
         chips = "".join(
             f'<div class="chip">{ic} {nm} <span class="chip-val">{vl}</span></div>'
