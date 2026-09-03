@@ -20,6 +20,19 @@ selected_features = meta["selected_features"]
 genre_map = meta["genre_map"]
 tag_map   = meta["tag_map"]
 
+# ── 先驗校正 ──────────────────────────────────────────────────────────
+# 訓練時以 SMOTE 將三類重採樣為 1:1:1，模型輸出的機率因此帶著均勻先驗，
+# 直接顯示會系統性高估爆款。推論時乘回真實市場先驗再正規化。
+TRAIN_PRIOR  = np.asarray(meta.get("train_prior",  [1/3, 1/3, 1/3]), dtype=float)
+MARKET_PRIOR = np.asarray(meta.get("market_prior", [0.707885, 0.19732, 0.094796]), dtype=float)
+PRIOR_RATIO  = MARKET_PRIOR / TRAIN_PRIOR
+
+def apply_prior(prob):
+    """把 SMOTE 均勻先驗下的後驗機率校正回市場先驗。"""
+    adj = np.asarray(prob, dtype=float) * PRIOR_RATIO
+    total = adj.sum()
+    return adj / total if total > 0 else np.asarray(prob, dtype=float)
+
 TIERS = {
     0: ("🔴  Flop（滯銷）",        "< 20,000 owners",         "#E53935"),
     1: ("🟡  Normal（回本）",      "20,000 – 100,000 owners", "#F9A825"),
@@ -195,7 +208,8 @@ if predict:
         if col and col in row: row[col] = 1
 
     X_in = pd.DataFrame([row])[selected_features].fillna(0).astype(np.float32)
-    prob = xgb_clf.predict_proba(X_in)[0]
+    prob_raw = xgb_clf.predict_proba(X_in)[0]
+    prob = apply_prior(prob_raw)
     pred = int(np.argmax(prob))
 
     tier_label, owners_range, color = TIERS[pred]
@@ -265,7 +279,8 @@ if predict:
                 模型：XGBoost（3-Tier Classification）<br>
                 特徵：Lasso 篩選後 60 維<br>
                 標籤：Percentile-Based Model B<br>
-                Macro F1：0.5339 ｜ Accuracy：67.1%
+                Macro F1：0.5339 ｜ Accuracy：67.1%<br>
+                機率已做先驗校正（訓練 SMOTE 1:1:1 → 市場 70.8 / 19.7 / 9.5）
             </div>
         </div>
         """, unsafe_allow_html=True)

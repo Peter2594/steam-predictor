@@ -147,5 +147,15 @@
     "Minimalist": "tag_Minimalist",
     "Cartoony": "tag_Cartoony",
     "Mystery": "tag_Mystery"
-  }
+  },
+  "train_prior": [
+    0.3333333333333333,
+    0.3333333333333333,
+    0.3333333333333333
+  ],
+  "market_prior": [
+    0.707885,
+    0.19732,
+    0.094796
+  ]
 }
